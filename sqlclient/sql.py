@@ -43,5 +43,6 @@ class SQL:
         cursor = self.conn.cursor()
         rows = cursor.execute(sql)
         result = cursor.fetchall()
+        cursor.close()
         print(rows, result)
         return rows, result  # type: ignore

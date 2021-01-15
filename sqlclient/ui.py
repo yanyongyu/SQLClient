@@ -1,6 +1,6 @@
 import tkinter as tk
-from typing import Optional, Callable
 from tkinter.messagebox import showerror
+from typing import List, Optional, Callable
 
 from prettytable import PrettyTable
 
@@ -132,13 +132,31 @@ class UI:
         frame = self.frame_with_scrollbar(master, self.DB_WIDTH, self.DB_HEIGHT)
         label = tk.Label(frame, text="数据库列表", font=("等线", 15))
         label.pack(side="top", fill="x", pady="10")
-        _, databases = self.db.execute("SHOW DATABASES")
-        for database in databases:
-            database_name = database["Database"]
-            button = tk.Button(frame, text=database_name)
-            button.pack(side="top", fill="x")
-            button.bind("<Button-1>",
-                        lambda event: on_change_database(event.widget["text"]))
+        buttons: List[tk.Button] = []
+
+        def _refresh():
+            for button in buttons:
+                button.destroy()
+            buttons.clear()
+            _, databases = self.db.execute("SHOW DATABASES")
+            for database in databases:
+                database_name = database["Database"]
+                button = tk.Button(frame, text=database_name)
+                button.pack(side="top", fill="x")
+                button.bind(
+                    "<Button-1>",
+                    lambda event: on_change_database(event.widget["text"]))
+                buttons.append(button)
+
+        menu = tk.Menu(frame, tearoff=0)
+        menu.add_command(label="刷新", command=_refresh)
+
+        def _popup(event):
+            menu.tk_popup(event.x_root, event.y_root)
+
+        frame.bind_all("<Button-3>", _popup)
+
+        _refresh()
 
     def _db_sql(self, master, input, output):
         # toolbar
@@ -168,8 +186,11 @@ class UI:
 
         frame2 = tk.Frame(master)
         frame2.pack(side="top", fill="both", expand=True)
-        text = tk.Text(frame2, font=("等线", 15))
+        text = tk.Text(frame2, font=("等线", 15), undo=True, maxundo=10)
         text.pack(side="left", fill="both", expand=True)
+        text.bind("<Control-Z>", lambda x: text.edit_undo())
+        text.bind("<Control-Shift-Z>", lambda x: text.edit_redo())
+        text.bind("<F5>", lambda x: _run_sql())
         bar = AutoShowScrollbar(frame2)
         bar.pack(side="right", fill="y", expand=False)
         bar.configure(command=text.yview)
